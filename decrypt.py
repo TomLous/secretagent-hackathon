@@ -3,33 +3,76 @@ import binascii
 
 
 def main():
-    # input "dGVnZ???GUg??yb29tIG1uIHR1Z2V uIGR1IHNOcm9vbS??iBOZWdlbi BkZCBzdHJOgaW4?dGVnZ W4gZGUgc3Ryb29tIG1u" // https://www.aivdhackathon.nl/custom/theme/assets/images/aivd_hackathon.png
+    # https://www.aivdhackathon.nl/custom/theme/assets/images/aivd_hackathon.png
+    # Whatch out for l vs 1, O vs 0
+    # Probably base64 encoded
 
-    base64Chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/="
+    decodedString = ""
 
-    placeholder = '_'
+    cypherText = "dGVnZ?GUg?yb29tIGluIHRlZ2VuIGRlIHN0cm9vbS?iB0ZWdlbiBkZSBzdHJ?0gaW4?dGVnZW4gZGUgc3Ryb29tIGlu"
 
-    cypherText = "dGVnZ????GUg???yb29tIG1uIHR1Z2VuIGR1IHNOcm9vbS??iBOZWdlbiBkZCBzdHJOgaW4?dGVnZW4gZGUgc3Ryb29tIG1u"
+    binaryChunks = "".join(map(lambda n:base64decode(cypherText[n:n+1]), range(0, len(cypherText)))).split("_")
 
-    str = ""
-    for n in range(0, len(cypherText)):
-        c = cypherText[n:n+1]
-        if c == '?':
-            str += '111111'
-        else:
-            print "---"
-            #print format(ord(c.encode()),'b')
-            print bin(base64Chars.index(c))[2:].zfill(6)
-            print base64Chars.index(c)
-            str += bin(base64Chars.index(c))[2:].zfill(6)
+    for ch in binaryChunks:
+        chunk = ch
+        maxValid = 0
+        bestAttempt = None
 
-        print c
-        #print "\n"
+        while True:
+            asciiArr = binToASCIIArr(chunk)
+
+            validChars = map(lambda c: validASCIIchr(c), asciiArr)
+            middleValid = all(validChars[1:-1])
+            numValid = validChars.count(True)
+
+            if middleValid:
+                bestAttempt = asciiArr
+                break
+            else:
+                if numValid > maxValid:
+                    maxValid = numValid
+                    bestAttempt = asciiArr
+
+                if (chunk[0:8] == '00000000'): #something went wrong
+                    break
+
+                # shift until middle valid
+                chunk = '00' + chunk
+
+        asciiArr = bestAttempt
+
+        # first incorrect?
+        if not validASCIIchr(asciiArr[0]):
+            #print format(ord(asciiArr[0]),'b')
+            asciiArr[0] = '_'
+
+        if not validASCIIchr(asciiArr[-1]):
+            # print format(ord(asciiArr[-1]), 'b')
+            asciiArr[-1] = '_'
+
+        # print asciiArr
+
+        decodedString  += "".join(asciiArr)
+
 
     print cypherText
-    print str
-    print  binascii.unhexlify('%x' % int('0b' + str, 2))
+    print decodedString
 
 
+def validASCIIchr(c):
+    allowedChars = " abcdefghijklmnopqrstuvwxyz"
+    return allowedChars.find(c) >= 0
+
+
+def binToASCIIArr(binstr):
+    return list(map(lambda b: chr(int(b, 2)), (binstr[0 + i:8 + i] for i in range(0, len(binstr), 8))))
+
+def base64decode(c):
+    base64Chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/="
+
+    if c == '?':
+        return "_"
+    else:
+        return bin(base64Chars.index(c))[2:].zfill(6)
 
 main()
